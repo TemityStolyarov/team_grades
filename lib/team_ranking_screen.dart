@@ -1,10 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class TeamRankingScreen extends StatefulWidget {
   const TeamRankingScreen({
@@ -79,22 +75,70 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
     }
   }
 
+  List<MapEntry<String, int>> _calculateFinalScores() {
+    final Map<String, int> totalScores = {};
+
+    // Суммируем баллы для каждого участника
+    evaluationResults.forEach((evaluator, rankings) {
+      rankings.forEach((participant, score) {
+        totalScores.update(participant, (value) => value + score,
+            ifAbsent: () => score);
+      });
+    });
+
+    // Сортируем по убыванию суммы баллов
+    return totalScores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (currentEvaluator.isEmpty) {
-      // Отображаем заглушку, если все завершили оценивание
+      // Итоговый топ участников
+      final List<MapEntry<String, int>> finalScores = _calculateFinalScores();
+
       return Scaffold(
         appBar: AppBar(
           title: const Text('Оценивание завершено'),
         ),
         body: Column(
           children: [
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'Все участники завершили оценивание.',
-                  style: TextStyle(fontSize: 18),
-                  textAlign: TextAlign.center,
+            // const Expanded(
+            //   child: Center(
+            //     child: Text(
+            //       'Все участники завершили оценивание.',
+            //       style: TextStyle(fontSize: 18),
+            //       textAlign: TextAlign.center,
+            //     ),
+            //   ),
+            // ),
+            // const SizedBox(height: 16),
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Итоговый рейтинг участников:',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: finalScores.length,
+                        itemBuilder: (context, index) {
+                          final entry = finalScores[index];
+                          return ListTile(
+                            title: Text('${index + 1}. ${entry.key}'),
+                            trailing: Text('Сумма баллов: ${entry.value}'),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
