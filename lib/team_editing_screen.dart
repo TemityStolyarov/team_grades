@@ -17,6 +17,48 @@ class TeamEditingScreen extends StatefulWidget {
 }
 
 class _TeamEditingScreenState extends State<TeamEditingScreen> {
+  void _editParticipant(int index) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final TextEditingController editController =
+            TextEditingController(text: widget.participants[index]);
+
+        return AlertDialog(
+          title: const Text('Редактировать участника'),
+          content: TextField(
+            controller: editController,
+            decoration: const InputDecoration(
+              labelText: 'Новое имя участника',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  widget.participants[index] = editController.text.trim();
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteParticipant(int index) {
+    setState(() {
+      widget.participants.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,10 +108,25 @@ class _TeamEditingScreenState extends State<TeamEditingScreen> {
                 children: [
                   for (int i = 0; i < widget.participants.length; i++)
                     ListTile(
-                      key: ValueKey(widget.participants[i]),
+                      key: UniqueKey(),
                       leading: Text('${i + 1}.'),
                       title: Text(widget.participants[i]),
-                      trailing: const Icon(Icons.drag_handle),
+                      trailing: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _editParticipant(i),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteParticipant(i),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                 ],
               ),
