@@ -49,6 +49,10 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
 
     evaluationResults[currentEvaluator] = rankings;
 
+    // Вывод JSON оценок текущего участника в консоль
+    final jsonString = jsonEncode({currentEvaluator: rankings});
+    print('$currentEvaluator: $jsonString');
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Оценки сохранены для $currentEvaluator')),
     );
@@ -60,6 +64,7 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     try {
       final jsonString = jsonEncode(evaluationResults);
+      print('Итоговый файл: $jsonString');
       await Clipboard.setData(ClipboardData(text: jsonString));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
