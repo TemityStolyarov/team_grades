@@ -19,121 +19,134 @@ class TeamRankingScreen extends StatefulWidget {
 }
 
 class _TeamRankingScreenState extends State<TeamRankingScreen> {
-  final String evaluatorName = "Оценивающий: Иван";
-
+  List<String> remainingParticipants = [];
+  String currentEvaluator = '';
   List<String> rankedParticipants = [];
+  Map<String, Map<String, int>> evaluationResults = {};
 
-  Future<void> copyJsonToClipboard() async {
+  @override
+  void initState() {
+    super.initState();
+    remainingParticipants = List.from(widget.participants);
+    _startNextEvaluation();
+  }
+
+  void _startNextEvaluation() {
+    if (remainingParticipants.isNotEmpty) {
+      setState(() {
+        currentEvaluator = remainingParticipants.removeAt(0);
+        rankedParticipants = List.from(widget.participants)
+          ..remove(currentEvaluator);
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Все участники завершили оценивание')),
+      );
+    }
+  }
+
+  int _getScore(int index) {
+    return rankedParticipants.length - index;
+  }
+
+  Future<void> _saveEvaluation() async {
     final Map<String, int> rankings = {
       for (int i = 0; i < rankedParticipants.length; i++)
         rankedParticipants[i]: _getScore(i),
     };
 
-    try {
-      final jsonString = jsonEncode(rankings);
-      await Clipboard.setData(ClipboardData(text: jsonString));
+    evaluationResults[currentEvaluator] = rankings;
 
-      print('JSON скопирован в буфер обмена');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Оценки сохранены для $currentEvaluator')),
+    );
+
+    _startNextEvaluation();
+  }
+
+  Future<void> copyResultsToClipboard() async {
+    try {
+      final jsonString = jsonEncode(evaluationResults);
+      await Clipboard.setData(ClipboardData(text: jsonString));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Результаты скопированы в буфер обмена')),
+      );
     } catch (e) {
       print('Ошибка при копировании JSON: $e');
     }
   }
 
   @override
-  void initState() {
-    super.initState();
-    rankedParticipants = List.from(widget.participants);
-  }
-
-  int _getScore(int index) {
-    return widget.participants.length - index;
-  }
-
-  Future<void> _exportToJson() async {
-    final Map<String, int> rankings = {
-      for (int i = 0; i < rankedParticipants.length; i++)
-        rankedParticipants[i]: _getScore(i),
-    };
-
-    final jsonString = jsonEncode(rankings);
-
-    final status = await Permission.storage.request();
-    if (status.isGranted) {
-      final directory = Directory('/storage/emulated/0/Download');
-      final file = File('${directory.path}/rankings.json');
-      await file.writeAsString(jsonString);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Файл сохранен: ${file.path}')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Доступ к хранилищу не предоставлен')),
+  Widget build(BuildContext context) {
+    if (currentEvaluator.isEmpty) {
+      // Отображаем заглушку, если все завершили оценивание
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Оценивание завершено'),
+        ),
+        body: const Center(
+          child: Text(
+            'Все участники завершили оценивание.',
+            style: TextStyle(fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(evaluatorName),
+        title: Text('Оценивающий: $currentEvaluator'),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ReorderableListView(
-              onReorder: (int oldIndex, int newIndex) {
-                if (newIndex > oldIndex) {
-                  newIndex -= 1;
-                }
-                setState(() {
-                  final item = rankedParticipants.removeAt(oldIndex);
-                  rankedParticipants.insert(newIndex, item);
-                });
-              },
+      body: currentEvaluator.isEmpty
+          ? const Center(child: Text('Оценивание завершено'))
+          : Column(
               children: [
-                for (int i = 0; i < rankedParticipants.length; i++)
-                  ListTile(
-                    key: GlobalKey(debugLabel: rankedParticipants[i]),
-                    title: Text(rankedParticipants[i]),
-                    trailing: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                Expanded(
+                  child: ReorderableListView(
+                    onReorder: (int oldIndex, int newIndex) {
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      setState(() {
+                        final item = rankedParticipants.removeAt(oldIndex);
+                        rankedParticipants.insert(newIndex, item);
+                      });
+                    },
+                    children: [
+                      for (int i = 0; i < rankedParticipants.length; i++)
+                        ListTile(
+                          key: GlobalKey(debugLabel: rankedParticipants[i]),
+                          title: Text(rankedParticipants[i]),
+                          trailing: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                'Оценка: ${_getScore(i)}',
+                              )),
                         ),
-                        child: Text(
-                          'Оценка: ${_getScore(i)}',
-                        )),
+                    ],
                   ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // Переход к предыдущему человеку (здесь можно добавить логику)
-                  },
-                  child: Text('Назад'),
                 ),
-                ElevatedButton(
-                  onPressed: () => copyJsonToClipboard(),
-                  child: Text('Сохранить'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    // Переход к следующему человеку (здесь можно добавить логику)
-                  },
-                  child: Text('Вперед'),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        onPressed: copyResultsToClipboard,
+                        child: const Text('Скопировать оценки'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _saveEvaluation,
+                        child: const Text('Далее'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
