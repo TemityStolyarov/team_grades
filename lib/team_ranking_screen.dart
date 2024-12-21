@@ -32,17 +32,16 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
   }
 
   void _startNextEvaluation() {
-    if (remainingParticipants.isNotEmpty) {
-      setState(() {
+    setState(() {
+      if (remainingParticipants.isNotEmpty) {
         currentEvaluator = remainingParticipants.removeAt(0);
         rankedParticipants = List.from(widget.participants)
           ..remove(currentEvaluator);
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Все участники завершили оценивание')),
-      );
-    }
+      } else {
+        currentEvaluator = ''; // Очищаем текущего оценивающего
+        rankedParticipants = [];
+      }
+    });
   }
 
   int _getScore(int index) {
@@ -50,6 +49,7 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
   }
 
   Future<void> _saveEvaluation() async {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final Map<String, int> rankings = {
       for (int i = 0; i < rankedParticipants.length; i++)
         rankedParticipants[i]: _getScore(i),
@@ -65,11 +65,14 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
   }
 
   Future<void> copyResultsToClipboard() async {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     try {
       final jsonString = jsonEncode(evaluationResults);
       await Clipboard.setData(ClipboardData(text: jsonString));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Результаты скопированы в буфер обмена')),
+        const SnackBar(
+          content: Text('Результаты скопированы в буфер обмена'),
+        ),
       );
     } catch (e) {
       print('Ошибка при копировании JSON: $e');
@@ -84,69 +87,93 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
         appBar: AppBar(
           title: const Text('Оценивание завершено'),
         ),
-        body: const Center(
-          child: Text(
-            'Все участники завершили оценивание.',
-            style: TextStyle(fontSize: 18),
-            textAlign: TextAlign.center,
-          ),
+        body: Column(
+          children: [
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Все участники завершили оценивание.',
+                  style: TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(
+                top: 16.0,
+                bottom: 56,
+                left: 16,
+                right: 16,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: copyResultsToClipboard,
+                    child: const Text('Скопировать оценки'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
 
+    // Основной интерфейс для текущего оценивающего
     return Scaffold(
       appBar: AppBar(
         title: Text('Оценивающий: $currentEvaluator'),
       ),
-      body: currentEvaluator.isEmpty
-          ? const Center(child: Text('Оценивание завершено'))
-          : Column(
+      body: Column(
+        children: [
+          Expanded(
+            child: ReorderableListView(
+              onReorder: (int oldIndex, int newIndex) {
+                if (newIndex > oldIndex) {
+                  newIndex -= 1;
+                }
+                setState(() {
+                  final item = rankedParticipants.removeAt(oldIndex);
+                  rankedParticipants.insert(newIndex, item);
+                });
+              },
               children: [
-                Expanded(
-                  child: ReorderableListView(
-                    onReorder: (int oldIndex, int newIndex) {
-                      if (newIndex > oldIndex) {
-                        newIndex -= 1;
-                      }
-                      setState(() {
-                        final item = rankedParticipants.removeAt(oldIndex);
-                        rankedParticipants.insert(newIndex, item);
-                      });
-                    },
-                    children: [
-                      for (int i = 0; i < rankedParticipants.length; i++)
-                        ListTile(
-                          key: GlobalKey(debugLabel: rankedParticipants[i]),
-                          title: Text(rankedParticipants[i]),
-                          trailing: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              child: Text(
-                                'Оценка: ${_getScore(i)}',
-                              )),
-                        ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      ElevatedButton(
-                        onPressed: copyResultsToClipboard,
-                        child: const Text('Скопировать оценки'),
+                for (int i = 0; i < rankedParticipants.length; i++)
+                  ListTile(
+                    key: GlobalKey(debugLabel: rankedParticipants[i]),
+                    title: Text(rankedParticipants[i]),
+                    trailing: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
                       ),
-                      ElevatedButton(
-                        onPressed: _saveEvaluation,
-                        child: const Text('Далее'),
+                      child: Text(
+                        'Оценка: ${_getScore(i)}',
                       ),
-                    ],
+                    ),
                   ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+              top: 16.0,
+              bottom: 56,
+              left: 16,
+              right: 16,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: _saveEvaluation,
+                  child: const Text('Далее'),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }

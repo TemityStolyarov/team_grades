@@ -14,7 +14,7 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  bool isOnTeamAddition = true;
+  bool isOnTeamRanking = false;
   List<String> participants = [];
   final TextEditingController _controller = TextEditingController();
 
@@ -30,7 +30,7 @@ class _MainAppState extends State<MainApp> {
 
   _switchSide() {
     setState(() {
-      isOnTeamAddition = !isOnTeamAddition;
+      isOnTeamRanking = !isOnTeamRanking;
     });
   }
 
@@ -52,28 +52,32 @@ class _MainAppState extends State<MainApp> {
             child: Row(
               children: [
                 MouseRegion(
-                  cursor: SystemMouseCursors.click,
+                  cursor: isOnTeamRanking
+                      ? SystemMouseCursors.click
+                      : SystemMouseCursors.forbidden,
                   child: GestureDetector(
-                    onTap: () => _switchSide(),
+                    onTap: isOnTeamRanking ? () => _switchSide() : null,
                     child: Text(
                       '<- К списку участников',
                       style: TextStyle(
                         fontWeight: FontWeight.w400,
-                        color: isOnTeamAddition ? Colors.black : Colors.grey,
+                        color: isOnTeamRanking ? Colors.black : Colors.grey,
                       ),
                     ),
                   ),
                 ),
                 const Spacer(),
                 MouseRegion(
-                  cursor: SystemMouseCursors.click,
+                  cursor: isOnTeamRanking
+                      ? SystemMouseCursors.forbidden
+                      : SystemMouseCursors.click,
                   child: GestureDetector(
-                    onTap: () => _switchSide(),
+                    onTap: isOnTeamRanking ? null : () => _switchSide(),
                     child: Text(
                       'К оцениванию ->',
                       style: TextStyle(
                         fontWeight: FontWeight.w400,
-                        color: isOnTeamAddition ? Colors.grey : Colors.black,
+                        color: isOnTeamRanking ? Colors.grey : Colors.black,
                       ),
                     ),
                   ),
@@ -83,13 +87,13 @@ class _MainAppState extends State<MainApp> {
           ),
         ),
         body: Center(
-          child: isOnTeamAddition
-              ? TeamEditingScreen(
-                  controller: _controller,
-                  addParticipant: _addParticipant,
+          child: isOnTeamRanking
+              ? TeamRankingScreen(
                   participants: participants,
                 )
-              : TeamRankingScreen(
+              : TeamEditingScreen(
+                  controller: _controller,
+                  addParticipant: _addParticipant,
                   participants: participants,
                 ),
         ),
