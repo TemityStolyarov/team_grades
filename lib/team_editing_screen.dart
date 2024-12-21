@@ -4,7 +4,8 @@ class TeamEditingScreen extends StatefulWidget {
   const TeamEditingScreen({
     super.key,
     required this.controller,
-    required this.addParticipant, required this.participants,
+    required this.addParticipant,
+    required this.participants,
   });
 
   final TextEditingController controller;
@@ -50,16 +51,27 @@ class _TeamEditingScreenState extends State<TeamEditingScreen> {
               'Список участников:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Expanded(
-              child: ListView.builder(
-                itemCount: widget.participants.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading: Text('${index + 1}.'),
-                    title: Text(widget.participants[index]),
-                  );
+              child: ReorderableListView(
+                onReorder: (int oldIndex, int newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) {
+                      newIndex -= 1;
+                    }
+                    final item = widget.participants.removeAt(oldIndex);
+                    widget.participants.insert(newIndex, item);
+                  });
                 },
+                children: [
+                  for (int i = 0; i < widget.participants.length; i++)
+                    ListTile(
+                      key: ValueKey(widget.participants[i]),
+                      leading: Text('${i + 1}.'),
+                      title: Text(widget.participants[i]),
+                      trailing: const Icon(Icons.drag_handle),
+                    ),
+                ],
               ),
             ),
           ],
