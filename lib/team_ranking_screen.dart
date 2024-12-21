@@ -40,15 +40,11 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
     });
   }
 
-  int _getScore(int index) {
-    return rankedParticipants.length - index;
-  }
-
   Future<void> _saveEvaluation() async {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final Map<String, int> rankings = {
       for (int i = 0; i < rankedParticipants.length; i++)
-        rankedParticipants[i]: _getScore(i),
+        rankedParticipants[i]: rankedParticipants.length - i,
     };
 
     evaluationResults[currentEvaluator] = rankings;
@@ -75,7 +71,7 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
     }
   }
 
-  List<MapEntry<String, int>> _calculateFinalScores() {
+  List<MapEntry<String, double>> _calculateFinalScores() {
     final Map<String, int> totalScores = {};
 
     // Суммируем баллы для каждого участника
@@ -86,16 +82,40 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
       });
     });
 
-    // Сортируем по убыванию суммы баллов
-    return totalScores.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    // Находим минимальную и максимальную сумму баллов
+    final minScore = totalScores.values.reduce((a, b) => a < b ? a : b);
+    final maxScore = totalScores.values.reduce((a, b) => a > b ? a : b);
+    final totalSum = totalScores.values.fold(0, (a, b) => a + b);
+
+    // Вычисляем финальные оценки по формуле
+    List<MapEntry<String, double>> finalScores = [];
+
+    totalScores.forEach((participant, score) {
+      double normalizedScore;
+
+      if (minScore == maxScore) {
+        normalizedScore = 3.5;
+      } else {
+        normalizedScore = 2 + (score - minScore) * (3 / (maxScore - minScore));
+      }
+
+      // Округляем до одного знака после запятой
+      finalScores.add(MapEntry(
+          participant, double.parse(normalizedScore.toStringAsFixed(1))));
+    });
+
+    // Сортируем по убыванию финальной оценки
+    finalScores.sort((a, b) => b.value.compareTo(a.value));
+
+    return finalScores;
   }
 
   @override
   Widget build(BuildContext context) {
     if (currentEvaluator.isEmpty) {
       // Итоговый топ участников
-      final List<MapEntry<String, int>> finalScores = _calculateFinalScores();
+      final List<MapEntry<String, double>> finalScores =
+          _calculateFinalScores();
 
       return Scaffold(
         appBar: AppBar(
@@ -103,16 +123,6 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
         ),
         body: Column(
           children: [
-            // const Expanded(
-            //   child: Center(
-            //     child: Text(
-            //       'Все участники завершили оценивание.',
-            //       style: TextStyle(fontSize: 18),
-            //       textAlign: TextAlign.center,
-            //     ),
-            //   ),
-            // ),
-            // const SizedBox(height: 16),
             Expanded(
               flex: 2,
               child: Padding(
@@ -133,7 +143,7 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
                           final entry = finalScores[index];
                           return ListTile(
                             title: Text('${index + 1}. ${entry.key}'),
-                            trailing: Text('Сумма баллов: ${entry.value}'),
+                            trailing: Text('Оценка: ${entry.value}'),
                           );
                         },
                       ),
@@ -192,7 +202,7 @@ class _TeamRankingScreenState extends State<TeamRankingScreen> {
                         horizontal: 16,
                       ),
                       child: Text(
-                        'Оценка: ${_getScore(i)}',
+                        'Оценка: ${rankedParticipants.length - i}',
                       ),
                     ),
                   ),
